@@ -8,25 +8,27 @@ imageCredentials: # image credentials info that will be used to create an image 
   password: PasswordGoesHere # password
   email: temp@.ibm.com # email
 
-imagePullSecret: 
-  name: qsc-ingress-image-pull-secret # name of the image pull secret that will be created
+# uncomment the imagePullSecret to create a secret with imageCredentials specified above
+# imagePullSecret: 
+#   name: qsc-ingress-image-pull-secret # name of the image pull secret that will be created
 
 client: 
   image: 
-    repository: de.icr.io/qsc-ingress-test-registry/curl-qsc # info required for testing the QSC setup using a QSC enabled curl client. repository info for the QSC enabled curl client
+    repository: docker.io/qscingresspoc/qsc_curl # info required for testing the QSC setup using a QSC enabled curl client. repository info for the QSC enabled curl client
     tag: latest # tag to use
-    pullPolicy: IfNotPresent # pull policy
+    pullPolicy: Always # pull policy
 
 backend: # info related to the sample backend that the ingress controller will route to
   replicaCount: 3 # no. of replicas for the backend deployment
 
   image:
-    repository:  de.icr.io/qsc-ingress-test-registry/nginx-mod-backend # repository info for the sample backend
+    repository:  docker.io/qscingresspoc/custom_backend # repository info for the sample backend
     tag: latest # tag to use
-    pullPolicy: IfNotPresent # pull policy
+    pullPolicy: Always # pull policy
 
-  imagePullSecrets:  
-  - name: qsc-ingress-image-pull-secret # name of the image pull secret
+  # uncomment the imagePullSecret to use this image secret
+  # imagePullSecrets:  
+  # - name: qsc-ingress-image-pull-secret # name of the image pull secret
     
   nameOverride: "" # used to set the label 'app.kubernetes.io/name' for the backend. If left empty, the default chart name will be used
   fullnameOverride: "custom-backend" # used to set the name of the backend deployment and service.
@@ -73,7 +75,7 @@ ingress: # informaton related to configuring the ingress
   enabled: true # if set to true, the ingress resource will be deployed
   class: nginx # ingress class name used to target an ingress class and also deploy an ingress class resource with this name
   annotations: # annotations for the ingress resource
-    nginx.ingress.kubernetes.io/ssl-redirect: "true" # set to true to disable HTTP access. Only HTTPS access allowed
+    nginx.ingress.kubernetes.io/ssl-redirect: "true" # set to true to disable HTTP access. Only HTTPS access will be allowed if this is set to true
 
   hosts: # The hosts information to specify the host and the paths. This will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain
     - host: qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud
@@ -89,11 +91,12 @@ ingress: # informaton related to configuring the ingress
 ingressController:
   name: helm-ingress-controller # This name should match the service name in the load-balancer chart. If 'deploy.sh' script is used, it will automatically ensure that this matches and overrides to match if necessary
 
-  imagePullSecrets:  
-  - name: qsc-ingress-image-pull-secret # name of the image pull secret
+  # uncomment the imagePullSecret to use this image secret
+  #imagePullSecrets:  
+  #- name: qsc-ingress-image-pull-secret # name of the image pull secret
   
   image:
-    repository:  de.icr.io/qsc-ingress-test-registry/ingress_qsc # repository info for the sample backend
-    tag: 0.40.2_qsc # tag to use
+    repository: docker.io/qscingresspoc/qsc_nginx_ingress_controller # repository info for the sample backend
+    tag: v0.40.2 # tag to use
     pullPolicy: Always # pull policy
 

@@ -20,15 +20,13 @@ The following table lists the configurable parameters of the Qsc-nginx chart and
 | `imageCredentials.username` | Username for accessing the registry | `"iamapikey"` |
 | `imageCredentials.password` | Password | `"PasswordGoesHere"` |
 | `imageCredentials.email` | Email | `"temp@.ibm.com"` |
-| `imagePullSecret.name` | Name of the image pull secret that will be created | `"qsc-ingress-image-pull-secret"` |
-| `client.image.repository` | Info required for testing the qsc setup using a qsc enabled curl client. repository info for the qsc enabled curl client | `"de.icr.io/qsc-ingress-test-registry/curl-qsc"` |
+| `client.image.repository` | Info required for testing the qsc setup using a qsc enabled curl client. repository info for the qsc enabled curl client | `"docker.io/qscingresspoc/qsc_curl"` |
 | `client.image.tag` | Tag to use | `"latest"` |
-| `client.image.pullPolicy` | Pull policy | `"IfNotPresent"` |
+| `client.image.pullPolicy` | Pull policy | `"Always"` |
 | `backend.replicaCount` | No. of replicas for the backend deployment | `3` |
-| `backend.image.repository` | Repository info for the sample backend | `"de.icr.io/qsc-ingress-test-registry/nginx-mod-backend"` |
+| `backend.image.repository` | Repository info for the sample backend | `"docker.io/qscingresspoc/custom_backend"` |
 | `backend.image.tag` | Tag to use | `"latest"` |
-| `backend.image.pullPolicy` | Pull policy | `"IfNotPresent"` |
-| `backend.imagePullSecrets` |  | `[{"name": "qsc-ingress-image-pull-secret"}]` |
+| `backend.image.pullPolicy` | Pull policy | `"Always"` |
 | `backend.nameOverride` | Used to set the label 'app.kubernetes.io/name' for the backend. if left empty, the default chart name will be used | `""` |
 | `backend.fullnameOverride` | Used to set the name of the backend deployment and service. | `"custom-backend"` |
 | `backend.serviceAccount.create` | Specifies whether a service account should be created | `true` |
@@ -43,13 +41,12 @@ The following table lists the configurable parameters of the Qsc-nginx chart and
 | `backend.resources` |  | `{}` |
 | `ingress.enabled` | If set to true, the ingress resource will be deployed | `true` |
 | `ingress.class` | Ingress class name used to target an ingress class and also deploy an ingress class resource with this name | `"nginx"` |
-| `ingress.annotations.nginx.ingress.kubernetes.io/ssl-redirect` | Set to true to disable http access. only https access allowed | `"true"` |
+| `ingress.annotations.nginx.ingress.kubernetes.io/ssl-redirect` | Set to true to disable http access. only https access will be allowed if this is set to true | `"true"` |
 | `ingress.hosts` | The hosts information to specify the host and the paths. this will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain | `[{"host": "qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud", "paths": ["/"]}]` |
 | `ingress.tls` | Tls related information. this will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain and the secret name configured in the namespace | `[{"secretName": "qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001", "hosts": ["qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud"]}]` |
 | `ingressController.name` | This name should match the service name in the load-balancer chart. if 'deploy.sh' script is used, it will automatically ensure that this matches and overrides to match if necessary | `"helm-ingress-controller"` |
-| `ingressController.imagePullSecrets` |  | `[{"name": "qsc-ingress-image-pull-secret"}]` |
-| `ingressController.image.repository` | Repository info for the sample backend | `"de.icr.io/qsc-ingress-test-registry/ingress_qsc"` |
-| `ingressController.image.tag` | Tag to use | `"0.40.2_qsc"` |
+| `ingressController.image.repository` | Repository info for the sample backend | `"docker.io/qscingresspoc/qsc_nginx_ingress_controller"` |
+| `ingressController.image.tag` | Tag to use | `"v0.40.2"` |
 | `ingressController.image.pullPolicy` | Pull policy | `"Always"` |
 
 
