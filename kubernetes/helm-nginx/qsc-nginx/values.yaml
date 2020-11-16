@@ -96,7 +96,7 @@ ingressController:
   #- name: qsc-ingress-image-pull-secret # name of the image pull secret
   
   image:
-    repository: docker.io/qscingresspoc/qsc_nginx_ingress_controller # repository info for the sample backend
+    repository: docker.io/qscingresspoc/qsc_nginx_ingress_controller # repository info for the ingress controller
     tag: v0.40.2 # tag to use
     pullPolicy: Always # pull policy
 

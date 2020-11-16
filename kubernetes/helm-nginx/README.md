@@ -45,7 +45,7 @@ The following table lists the configurable parameters of the Qsc-nginx chart and
 | `ingress.hosts` | The hosts information to specify the host and the paths. this will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain | `[{"host": "qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud", "paths": ["/"]}]` |
 | `ingress.tls` | Tls related information. this will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain and the secret name configured in the namespace | `[{"secretName": "qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001", "hosts": ["qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud"]}]` |
 | `ingressController.name` | This name should match the service name in the load-balancer chart. if 'deploy.sh' script is used, it will automatically ensure that this matches and overrides to match if necessary | `"helm-ingress-controller"` |
-| `ingressController.image.repository` | Repository info for the sample backend | `"docker.io/qscingresspoc/qsc_nginx_ingress_controller"` |
+| `ingressController.image.repository` | repository info for the ingress controller | `"docker.io/qscingresspoc/qsc_nginx_ingress_controller"` |
 | `ingressController.image.tag` | Tag to use | `"v0.40.2"` |
 | `ingressController.image.pullPolicy` | Pull policy | `"Always"` |
 
