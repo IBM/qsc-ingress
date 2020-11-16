@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: nginx-backend-dummy-webserver
+  name: nginx-backend-dummy-webserver
+  namespace: @@my_namespace@@
+data:
+  # Add data as required
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx-backend-dummy-webserver
+  name: nginx-backend-dummy-webserver
+  namespace: @@my_namespace@@
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      run: nginx-backend-dummy-webserver
+  revisionHistoryLimit: 10
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        run: nginx-backend-dummy-webserver
+    spec:
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: qsc-openshift-router-image-pull-secret
+      containers:
+        - name: nginx-backend-dummy-webserver
+          image: centos/nginx-18-centos7:1.8
+#          image: de.icr.io/qsc-ingress-test-registry/nginx-backend:v1.0
+          imagePullPolicy: IfNotPresent
+          args:
+#          securityContext:
+#            capabilities:
+#              drop:
+#                - ALL
+#              add:
+#                - NET_BIND_SERVICE
+#            runAsUser: 101
+#            allowPrivilegeEscalation: true
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 90Mi
+      terminationGracePeriodSeconds: 300
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: nginx-backend-dummy-webserver
+  name: nginx-backend-dummy-webserver
+  namespace: @@my_namespace@@
+spec:
+  type: ClusterIP
+  ports:
+    - name: https
+      port: 8082
+      targetPort: 80
+  selector:
+    run: nginx-backend-dummy-webserver
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-backend-dummy-webserver-ingress
+  namespace: @@my_namespace@@
+  annotations:
+#    ingressClassName: /@@my_namespace@@/ingress-nginx-controller
+#    kubernetes.io/ingress.class: "ingress-nginx-controller"
+#    haproxy.org/ingress.class: "/@@my_namespace@@/ingress-nginx-controller"
+#    haproxy.org/ingress.class: "custom_ingress_controller"
+#    kubernetes.io/ingress.class: "my_custom_nginx_ingress_controller"
+#    haproxy.org/ingress.class: "ingress-nginx-controller"
+#    kubernetes.io/ingress.class: "dummy_do_not_connect"
+#    kubernetes.io/ingress.class: /@@my_namespace@@/ingress-nginx-controller
+#    kubernetes.io/ingress.class: ingress-nginx-controller    
+spec:
+#  serviceAccountName: ingress-nginx
+#  ingressClassName: "my.nginx"
+#  ingressClassName: ingress-nginx-controller
+#  ingressClassName: "@@my_namespace@@.ingress-nginx-class"
+#  ingressClassName: ingress-nginx-class
+  tls:
+    - hosts:
+        - >-
+          @@External_LB_address@@
+      secretName: @@External_LB_CertSecretName@@
+  rules:
+    - host: >-
+        @@External_LB_address@@
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              serviceName: nginx-backend-dummy-webserver
+              servicePort: 8082      
+    - http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            serviceName: nginx-backend-dummy-webserver
+            servicePort: 8082
+#  defaultBackend:
+#    service:
+#      name: qsc-openshift-router-default-backend
+#      port:
+#        number: 8080
+

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: ingress-nginx-default-backend
+  name: ingress-nginx-default-backend
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    run: ingress-nginx-default-backend
+  ports:
+  - name: http
+    port: 8081
+    protocol: TCP
+    targetPort: 8080

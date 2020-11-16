@@ -1,0 +1,211 @@
+diff -ruN curl_original/curl/include/curl/curl.h curl_oqs/curl/include/curl/curl.h
+--- curl_original/curl/include/curl/curl.h	2020-08-17 00:28:40.000000000 +0200
++++ curl_oqs/curl/include/curl/curl.h	2020-09-07 09:44:26.446971642 +0200
+@@ -1971,6 +1971,9 @@
+   CURLOPT(CURLOPT_PROXY_ISSUERCERT, CURLOPTTYPE_STRINGPOINT, 296),
+   CURLOPT(CURLOPT_PROXY_ISSUERCERT_BLOB, CURLOPTTYPE_BLOB, 297),
+ 
++  /* The (EC) curve [list] to select. */
++  CURLOPT(CURLOPT_CURVES, CURLOPTTYPE_STRINGPOINT, 291),
++
+   CURLOPT_LASTENTRY /* the last unused */
+ } CURLoption;
+ 
+diff -ruN curl_original/curl/include/curl/typecheck-gcc.h curl_oqs/curl/include/curl/typecheck-gcc.h
+--- curl_original/curl/include/curl/typecheck-gcc.h	2020-08-07 17:38:12.000000000 +0200
++++ curl_oqs/curl/include/curl/typecheck-gcc.h	2020-09-07 09:51:43.848848748 +0200
+@@ -262,6 +262,7 @@
+    (option) == CURLOPT_COOKIEJAR ||                                           \
+    (option) == CURLOPT_COOKIELIST ||                                          \
+    (option) == CURLOPT_CRLFILE ||                                             \
++   (option) == CURLOPT_CURVES ||                                              \
+    (option) == CURLOPT_CUSTOMREQUEST ||                                       \
+    (option) == CURLOPT_DEFAULT_PROTOCOL ||                                    \
+    (option) == CURLOPT_DNS_INTERFACE ||                                       \
+diff -ruN curl_original/curl/lib/doh.c curl_oqs/curl/lib/doh.c
+--- curl_original/curl/lib/doh.c	2020-08-17 00:28:40.000000000 +0200
++++ curl_oqs/curl/lib/doh.c	2020-09-07 09:56:10.727945773 +0200
+@@ -340,6 +340,10 @@
+       ERROR_CHECK_SETOPT(CURLOPT_EGDSOCKET,
+         data->set.str[STRING_SSL_EGDSOCKET]);
+     }
++    if(data->set.str[STRING_SSL_CURVES]) {
++      ERROR_CHECK_SETOPT(CURLOPT_CURVES,
++        data->set.str[STRING_SSL_CURVES]);
++    }
+     if(data->set.ssl.no_revoke)
+       ERROR_CHECK_SETOPT(CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+     else if(data->set.ssl.revoke_best_effort)
+diff -ruN curl_original/curl/lib/setopt.c curl_oqs/curl/lib/setopt.c
+--- curl_original/curl/lib/setopt.c	2020-08-17 00:28:40.000000000 +0200
++++ curl_oqs/curl/lib/setopt.c	2020-09-07 09:57:32.661165218 +0200
+@@ -2020,6 +2020,14 @@
+     result = Curl_setstropt(&data->set.str[STRING_SSL_CRLFILE_ORIG],
+                             va_arg(param, char *));
+     break;
++  case CURLOPT_CURVES:
++    /*
++     * Set accepted curves SSL connection setup.
++     * Specify colon-delimited list of curve algorithm names.
++     */
++    result = Curl_setstropt(&data->set.str[STRING_SSL_CURVES],
++                            va_arg(param, char *));
++    break;
+ #ifndef CURL_DISABLE_PROXY
+   case CURLOPT_PROXY_CRLFILE:
+     /*
+diff -ruN curl_original/curl/lib/url.c curl_oqs/curl/lib/url.c
+--- curl_original/curl/lib/url.c	2020-08-17 14:34:42.000000000 +0200
++++ curl_oqs/curl/lib/url.c	2020-09-07 10:00:11.615725560 +0200
+@@ -3602,6 +3602,7 @@
+   */
+   data->set.ssl.primary.CApath = data->set.str[STRING_SSL_CAPATH_ORIG];
+   data->set.ssl.primary.CAfile = data->set.str[STRING_SSL_CAFILE_ORIG];
++  data->set.ssl.primary.curves = data->set.str[STRING_SSL_CURVES];
+   data->set.ssl.primary.random_file = data->set.str[STRING_SSL_RANDOM_FILE];
+   data->set.ssl.primary.egdsocket = data->set.str[STRING_SSL_EGDSOCKET];
+   data->set.ssl.primary.cipher_list =
+diff -ruN curl_original/curl/lib/urldata.h curl_oqs/curl/lib/urldata.h
+--- curl_original/curl/lib/urldata.h	2020-08-17 14:34:42.000000000 +0200
++++ curl_oqs/curl/lib/urldata.h	2020-09-07 10:03:05.053738052 +0200
+@@ -223,6 +223,7 @@
+   long version_max;      /* max supported version the client wants to use*/
+   char *CApath;          /* certificate dir (doesn't work on windows) */
+   char *CAfile;          /* certificate to verify peer against */
++  char *curves;          /* list of curves to use */
+   char *clientcert;
+   char *random_file;     /* path to file containing "random" data */
+   char *egdsocket;       /* path to file containing the EGD daemon socket */
+@@ -1507,6 +1508,7 @@
+   STRING_SSL_CAPATH_PROXY, /* CA directory name (doesn't work on windows) */
+   STRING_SSL_CAFILE_ORIG, /* certificate file to verify peer against */
+   STRING_SSL_CAFILE_PROXY, /* certificate file to verify peer against */
++  STRING_SSL_CURVES,      /* curve names to use during session key establishment */
+   STRING_SSL_PINNEDPUBLICKEY_ORIG, /* public key file to verify peer against */
+   STRING_SSL_PINNEDPUBLICKEY_PROXY, /* public key file to verify proxy */
+   STRING_SSL_CIPHER_LIST_ORIG, /* list of ciphers to use */
+diff -ruN curl_original/curl/lib/vtls/openssl.c curl_oqs/curl/lib/vtls/openssl.c
+--- curl_original/curl/lib/vtls/openssl.c	2020-08-19 09:36:36.000000000 +0200
++++ curl_oqs/curl/lib/vtls/openssl.c	2020-09-10 12:37:58.062613423 +0200
+@@ -2775,6 +2775,18 @@
+     infof(data, "Cipher selection: %s\n", ciphers);
+   }
+ 
++  {
++    char *curves = SSL_CONN_CONFIG(curves);
++    if(curves) {
++      if(!SSL_CTX_set1_curves_list(backend->ctx, curves)) {
++        failf(data, "failed setting curves list: '%s'", curves);
++        return CURLE_SSL_CIPHER;
++      }
++    }
++  }
++
++
++
+ #ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
+   {
+     char *ciphers13 = SSL_CONN_CONFIG(cipher_list13);
+@@ -3321,9 +3333,13 @@
+     connssl->connecting_state = ssl_connect_3;
+ 
+     /* Informational message */
+-    infof(data, "SSL connection using %s / %s\n",
++    infof(data, "SSL connection using %s / %s / %s / %s\n",
+           get_ssl_version_txt(backend->handle),
+-          SSL_get_cipher(backend->handle));
++          SSL_get_cipher(backend->handle),
++          OBJ_nid2sn(SSL_get_used_curve_nid(backend->handle)),
++          OBJ_nid2sn(SSL_get_used_sigalg_nid(backend->handle))
++         );
++
+ 
+ #ifdef HAS_ALPN
+     /* Sets data and len to negotiated protocol, len is 0 if no protocol was
+diff -ruN curl_original/curl/lib/vtls/vtls.c curl_oqs/curl/lib/vtls/vtls.c
+--- curl_original/curl/lib/vtls/vtls.c	2020-08-17 17:54:14.000000000 +0200
++++ curl_oqs/curl/lib/vtls/vtls.c	2020-09-07 10:10:37.029977567 +0200
+@@ -158,6 +158,7 @@
+   CLONE_BLOB(cert_blob);
+   CLONE_STRING(CApath);
+   CLONE_STRING(CAfile);
++  CLONE_STRING(curves);
+   CLONE_STRING(clientcert);
+   CLONE_STRING(random_file);
+   CLONE_STRING(egdsocket);
+@@ -172,6 +173,7 @@
+ {
+   Curl_safefree(sslc->CApath);
+   Curl_safefree(sslc->CAfile);
++  Curl_safefree(sslc->curves);
+   Curl_safefree(sslc->clientcert);
+   Curl_safefree(sslc->random_file);
+   Curl_safefree(sslc->egdsocket);
+diff -ruN curl_original/curl/src/tool_cfgable.c curl_oqs/curl/src/tool_cfgable.c
+--- curl_original/curl/src/tool_cfgable.c	2020-08-11 13:40:41.000000000 +0200
++++ curl_oqs/curl/src/tool_cfgable.c	2020-09-07 10:11:42.715675116 +0200
+@@ -106,6 +106,7 @@
+ 
+   Curl_safefree(config->doh_url);
+   Curl_safefree(config->cipher_list);
++  Curl_safefree(config->curves);
+   Curl_safefree(config->proxy_cipher_list);
+   Curl_safefree(config->cert);
+   Curl_safefree(config->proxy_cert);
+diff -ruN curl_original/curl/src/tool_cfgable.h curl_oqs/curl/src/tool_cfgable.h
+--- curl_original/curl/src/tool_cfgable.h	2020-08-13 11:55:10.000000000 +0200
++++ curl_oqs/curl/src/tool_cfgable.h	2020-09-07 10:12:21.266322856 +0200
+@@ -133,6 +133,7 @@
+   struct getout *url_ul;    /* point to the node to fill in upload */
+   char *doh_url;
+   char *cipher_list;
++  char *curves;
+   char *proxy_cipher_list;
+   char *cipher13_list;
+   char *proxy_cipher13_list;
+diff -ruN curl_original/curl/src/tool_getparam.c curl_oqs/curl/src/tool_getparam.c
+--- curl_original/curl/src/tool_getparam.c	2020-08-17 00:28:40.000000000 +0200
++++ curl_oqs/curl/src/tool_getparam.c	2020-09-07 10:24:43.051611614 +0200
+@@ -272,6 +272,7 @@
+   {"EB", "socks5-gssapi",            ARG_BOOL},
+   {"EC", "etag-save",                ARG_FILENAME},
+   {"ED", "etag-compare",             ARG_FILENAME},
++  {"EX", "curves",                   ARG_STRING},
+   {"f",  "fail",                     ARG_BOOL},
+   {"fa", "fail-early",               ARG_BOOL},
+   {"fb", "styled-output",            ARG_BOOL},
+@@ -1725,6 +1726,10 @@
+         GetStr(&config->etag_compare_file, nextarg);
+         break;
+ 
++      case 'X': /* --curves */
++        GetStr(&config->curves, nextarg);
++         break;
++
+       default: /* unknown flag */
+         return PARAM_OPTION_UNKNOWN;
+       }
+diff -ruN curl_original/curl/src/tool_help.c curl_oqs/curl/src/tool_help.c
+--- curl_original/curl/src/tool_help.c	2020-08-17 00:28:40.000000000 +0200
++++ curl_oqs/curl/src/tool_help.c	2020-09-07 10:27:13.790090219 +0200
+@@ -64,6 +64,8 @@
+    "CA certificate to verify peer against"},
+   {"    --capath <dir>",
+    "CA directory to verify peer against"},
++  {"-EX, --curves <colon-separated-list of curves to select>",
++   "Curves to accept during session setup"},
+   {"-E, --cert <certificate[:password]>",
+    "Client certificate file and password"},
+   {"    --cert-status",
+diff -ruN curl_original/curl/src/tool_operate.c curl_oqs/curl/src/tool_operate.c
+--- curl_original/curl/src/tool_operate.c	2020-08-17 00:28:40.000000000 +0200
++++ curl_oqs/curl/src/tool_operate.c	2020-09-07 10:28:06.752160427 +0200
+@@ -1470,6 +1470,8 @@
+ 
+         if(config->cacert)
+           my_setopt_str(curl, CURLOPT_CAINFO, config->cacert);
++        if(config->curves)
++          my_setopt_str(curl, CURLOPT_CURVES, config->curves);
+         if(config->proxy_cacert)
+           my_setopt_str(curl, CURLOPT_PROXY_CAINFO, config->proxy_cacert);
+ 

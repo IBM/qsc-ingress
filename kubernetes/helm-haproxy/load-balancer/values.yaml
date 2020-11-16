@@ -1,0 +1,8 @@
+# Default values for qsc-haproxy.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+service:
+  name: helm-haproxy-ingress-controller
+  type: LoadBalancer
+

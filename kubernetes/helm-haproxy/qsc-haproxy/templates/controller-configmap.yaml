@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: {{ .Values.ingressController.name }}
+    app.kubernetes.io/name: {{ .Values.ingressController.name }}
+    app.kubernetes.io/instance: {{ .Values.ingressController.name }}
+    app.kubernetes.io/version: 0.34.1
+    app.kubernetes.io/component: controller
+  name: {{ .Values.ingressController.name }}
+  namespace: {{ .Release.Namespace }}
+# See here for all options: https://github.com/haproxytech/kubernetes-ingress/tree/master/documentation
+data:
+  HAPROXY_DEFAULT_CURVES: "p256_kyber512:prime256v1:secp384r1:secp521r1:X25519:X448:kyber512:kyber768:kyber1024:p384_kyber768:p521_kyber1024"
+  HAPROXY_DEFAULT_CIPHERS: "TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305"
+  # Because of an issue with HAProxy ingress controller, set default ssl-redirect to false if you expect
+  # a situation where the ingress resource will be deleted. ssl-redirect can be enabled in the ingress
+  # resource and will work as expected. 
+  # If defautl ssl-redirect is set to true and the ingress resource is deleted, then the 
+  # ingress will still continue routing to the backend without falling back to the default backend
+  ssl-redirect: "false"
+  ssl-certificate: {{ .Release.Namespace}}/
+                                        {{- $first_entry := true }} 
+                                        {{- range $tls := .Values.ingress.tls }}
+                                          {{- if $first_entry -}} 
+                                            {{ $tls.secretName }}
+                                            {{- $first_entry = false }}
+                                          {{- end }}
+                                        {{- end }}
+  ssl-redirect-code: "302"
+  

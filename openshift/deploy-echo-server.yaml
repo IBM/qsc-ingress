@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: router-http-echo
+    app: router-http-echo
+  name: router-http-echo
+  namespace: @@my_namespace@@
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: router-http-echo
+  revisionHistoryLimit: 10
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        run: router-http-echo
+#        ingresscontroller.operator.openshift.io/deployment-ingresscontroller: qsc-openshift-router
+    spec:
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: router-http-echo
+          image: openshift/origin-node
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          command:
+            - /usr/bin/socat
+            - TCP4-LISTEN:8676,reuseaddr,fork
+            - EXEC:'/bin/bash -c \"printf \\\"HTTP/1.0 200 OK\r\n\r\n\\\"; sed -e \\\"/^\r/q\\\"\"'
+          ports:
+          - containerPort: 8676
+            protocol: TCP
+      restartPolicy: Always
+      securityContext: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: router-http-echo
+  namespace: @@my_namespace@@
+  labels:
+    app: router-http-echo
+#    run: router-http-echo
+#    router: default
+#    router: qsc-openshift-router
+spec:
+  selector:
+    run: router-http-echo
+#    app: router-http-echo
+  ports:
+    - port: 8676
+      name: router-http-echo
+      protocol: TCP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-backend-dummy-webserver-ingress
+  namespace: @@my_namespace@@
+  labels: 
+#    router: default
+#    router: qsc-openshift-router
+    ingresscontroller.operator.openshift.io/deployment-ingresscontroller: qsc-openshift-router
+#    ingresscontroller.operator.openshift.owning-ingresscontroller: default
+  annotations:
+#    ingresscontroller.operator.openshift.io/deployment-ingresscontroller: qsc-openshift-router
+#    ingressClassName: /@@my_namespace@@/ingress-nginx-controller
+#    kubernetes.io/ingress.class: "ingress-nginx-controller"
+#    haproxy.org/ingress.class: "/@@my_namespace@@/ingress-nginx-controller"
+#    haproxy.org/ingress.class: "custom_ingress_controller"
+#    kubernetes.io/ingress.class: "my_custom_nginx_ingress_controller"
+#    haproxy.org/ingress.class: "ingress-nginx-controller"
+#    kubernetes.io/ingress.class: "dummy_do_not_connect"
+#    kubernetes.io/ingress.class: /@@my_namespace@@/ingress-nginx-controller
+#    kubernetes.io/ingress.class: ingress-nginx-controller    
+spec:
+#  serviceAccountName: ingress-nginx
+#  ingressClassName: "my.nginx"
+#  ingressClassName: ingress-nginx-controller
+#  ingressClassName: "@@my_namespace@@.ingress-nginx-class"
+#  ingressClassName: ingress-nginx-class
+  tls:
+    - hosts:
+        - >-
+          @@External_LB_address@@
+      secretName: @@External_LB_CertSecretName@@
+  rules:
+    - host: >-
+        @@External_LB_address@@
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              serviceName: router-http-echo
+              servicePort: 8676      
+    - http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            serviceName: router-http-echo
+            servicePort: 8676
+#  defaultBackend:
+#    service:
+#      name: qsc-openshift-router-default-backend
+#      port:
+#        number: 8080
+---
+apiVersion: v1
+kind: Route
+metadata:
+  name: router-http-echo
+  namespace: @@my_namespace@@
+  labels:
+#    router: default
+    router: my-qsc-openshift-router
+#    router: qsc-openshift-router
+    ingresscontroller.operator.openshift.io/deployment-ingresscontroller: qsc-openshift-router
+spec:
+  host: >-
+        @@External_LB_address@@
+  to:
+    kind: Service
+    name: router-http-echo

@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Values.ingressController.name }}
+    app.kubernetes.io/name: {{ .Values.ingressController.name }}
+    app.kubernetes.io/instance: {{ .Values.ingressController.name }}
+    app.kubernetes.io/version: 0.34.1
+    app.kubernetes.io/component: controller
+  name: {{ .Values.ingressController.name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ .Values.ingressController.name }}
+      app.kubernetes.io/name: {{ .Values.ingressController.name }}
+      app.kubernetes.io/instance: {{ .Values.ingressController.name }}
+      app.kubernetes.io/component: controller
+  revisionHistoryLimit: 10
+  minReadySeconds: 0
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.ingressController.name }}
+        app.kubernetes.io/name: {{ .Values.ingressController.name }}
+        app.kubernetes.io/instance: {{ .Values.ingressController.name }}
+        app.kubernetes.io/component: controller
+    spec:
+      dnsPolicy: ClusterFirst
+      {{- with .Values.ingressController.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: controller
+          image: "{{ .Values.ingressController.image.repository }}:{{ .Values.ingressController.image.tag }}"
+          imagePullPolicy: {{ .Values.ingressController.image.pullPolicy }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /wait-shutdown
+          args:
+            - --ingress.class={{ .Values.ingress.class }}
+            - --default-backend-service={{ .Release.Namespace }}/ingress-haproxy-default-backend
+            - --default-ssl-certificate={{ .Release.Namespace}}/
+                                        {{- $first_entry := true }} 
+                                        {{- range $tls := .Values.ingress.tls }}
+                                          {{- if $first_entry -}} 
+                                            {{ $tls.secretName }}
+                                            {{- $first_entry = false }}
+                                          {{- end }}
+                                        {{- end }}
+            - --configmap={{ .Release.Namespace }}/{{ .Values.ingressController.name }}
+            - --namespace-whitelist={{ .Release.Namespace }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          envFrom:
+          - configMapRef:
+              name: {{ .Values.ingressController.name }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 1042
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 1042
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+            - name: stat
+              containerPort: 1024
+          resources:
+            requests:
+              cpu: 100m
+              memory: 90Mi
+      serviceAccountName: {{ .Values.ingressController.name }}
+      terminationGracePeriodSeconds: 300

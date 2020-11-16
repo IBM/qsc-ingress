@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "qsc-nginx.fullname" . }}-prime256-kyber512-test"
+  labels:
+{{ include "qsc-nginx.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  namespace: {{ .Release.Namespace }}
+spec:
+{{- with .Values.backend.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 8 }}
+{{- end }}
+  containers:
+    - name: curl-qsc
+      image: "{{ .Values.client.image.repository }}:{{ .Values.client.image.tag }}"
+      command: ['/opt/quantum_safe_crypto/bin/curl_QSC']
+      args:  ['-v', '-k', '--curves', 'p256_kyber512' 
+        {{- range $host := .Values.ingress.hosts }}
+          {{- range .paths -}}
+              ,'http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ . }}'
+          {{- end }} 
+        {{- end -}}]
+  restartPolicy: Never

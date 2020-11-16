@@ -1,0 +1,11 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: IngressClass
+metadata:
+  name: {{ .Values.ingress.class }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  controller: k8s.io/ingress-nginx
+  #parameters:
+    #apiGroup: k8s.example.com
+    #kind: IngressParameters
+    #name: {{ .Values.ingress.class }}

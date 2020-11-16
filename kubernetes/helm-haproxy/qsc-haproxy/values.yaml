@@ -1,0 +1,105 @@
+# Default values for qsc-nginx.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+imageCredentials:
+  registry: de.icr.io/qsc-ingress-test-registry
+  username: iamapikey
+  password: PasswordGoesHere
+  email: temp@ibm.com
+
+imagePullSecret:
+  name: qsc-ingress-image-pull-secret
+
+client:
+  image:
+    repository: de.icr.io/qsc-ingress-test-registry/curl-qsc
+    tag: latest
+    pullPolicy: IfNotPresent
+
+backend:
+  replicaCount: 3
+
+  image:
+    #repository:  de.icr.io/qsc-ingress-test-registry/nginx-mod-backend
+    repository:  de.icr.io/qsc-ingress-test-registry/recovered-nginx-mod-backend
+    tag: latest
+    pullPolicy: Always
+
+  imagePullSecrets:  
+  - name: qsc-ingress-image-pull-secret
+  
+  nameOverride: ""
+  fullnameOverride: "haproxy"
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+  podSecurityContext: {}
+    # fsGroup: 2000
+
+  securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+ingress:
+  enabled: true
+  class: ingress-haproxy-class
+  annotations: 
+    # See here for all options: https://github.com/haproxytech/kubernetes-ingress/tree/master/documentation
+    ingress.class: "ingress-haproxy-class"
+    haproxy.org/ssl-redirect: "true"
+
+  hosts:
+    - host: qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud
+      paths: 
+        - /
+
+  tls: 
+    - secretName: qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001
+      hosts:
+        - qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud
+
+
+ingressController:
+  # This name should match the service name in the load-balancer chart
+  name: helm-haproxy-ingress-controller
+  
+  imagePullSecrets:  
+  - name: qsc-ingress-image-pull-secret
+
+  image:
+    repository:  de.icr.io/qsc-ingress-test-registry/ingress_haproxy_qsc
+    tag: v1.4.7
+    pullPolicy: Always
+

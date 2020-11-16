@@ -1,0 +1,418 @@
+# See here for network APIs: 
+# https://docs.openshift.com/container-platform/4.4/rest_api/network_apis/network-apis-index.html
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: qsc-openshift-router
+  name: qsc-openshift-router
+  namespace: @@my_namespace@@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: qsc-openshift-router
+  name: qsc-openshift-router
+  namespace: @@my_namespace@@
+rules:
+  - verbs:
+      - list
+      - watch
+    apiGroups:
+      - ''
+    resources:
+      - endpoints
+      - namespaces
+      - services
+  - verbs:
+      - create
+    apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+  - verbs:
+      - create
+    apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+  - verbs:
+      - list
+      - watch
+    apiGroups:
+      - route.openshift.io
+    resources:
+      - routes
+  - verbs:
+      - update
+    apiGroups:
+      - route.openshift.io
+    resources:
+      - routes/status
+  - verbs:
+      - use
+    apiGroups:
+      - security.openshift.io
+    resources:
+      - securitycontextconstraints
+    resourceNames:
+      - hostnetwork
+---
+apiVersion: authorization.openshift.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: qsc-openshift-router
+  name: qsc-openshift-router
+  namespace: @@my_namespace@@
+subjects:
+  - kind: ServiceAccount
+    name: qsc-openshift-router
+    namespace: @@my_namespace@@
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: qsc-openshift-router
+---
+apiVersion: authorization.openshift.io/v1
+kind: Role
+metadata:
+  labels:
+    app: qsc-openshift-router
+  name: qsc-openshift-router
+  namespace: @@my_namespace@@
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io   # k8s 1.14+
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io   # k8s 1.14+
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io   # k8s 1.14+
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    resourceNames:
+      - ingress-controller-leader-haproxy
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ''
+    resources:
+      - endpoints
+    verbs:
+      - create
+      - get
+      - update
+  - apiGroups:
+      - ''
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+---
+apiVersion: authorization.openshift.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app: qsc-openshift-router
+  name: qsc-openshift-router
+  namespace: @@my_namespace@@
+roleRef:
+  apiGroup: authorization.openshift.io
+  kind: Role
+  name: qsc-openshift-router
+subjects:
+  - kind: ServiceAccount
+    name: qsc-openshift-router
+    namespace: @@my_namespace@@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qsc-openshift-router
+  namespace: @@my_namespace@@
+  labels:
+    ingresscontroller.operator.openshift.io/owning-ingresscontroller: default
+    router: my-qsc-openshift-router
+#    ingresscontroller.operator.openshift.io/owning-ingresscontroller: qsc-ingress-operator
+#    ingresscontroller.operator.openshift.io/owning-ingresscontroller: openshift-ingress-operator/qsc-ingress-operator
+#    ingresscontroller.operator.openshift.io/owning-ingresscontroller: ingress-operator
+spec:
+  progressDeadlineSeconds: 60
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+#      ingresscontroller.operator.openshift.io/deployment-ingresscontroller: default
+      ingresscontroller.operator.openshift.io/deployment-ingresscontroller: qsc-openshift-router
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+#        ingresscontroller.operator.openshift.io/deployment-ingresscontroller: default
+        ingresscontroller.operator.openshift.io/deployment-ingresscontroller: qsc-openshift-router
+        ingresscontroller.operator.openshift.io/hash: 53b40ac62800
+    spec:
+#     see here for specs: https://docs.openshift.com/container-platform/4.4/networking/ingress-operator.html#nw-ingress-controller-configuration-parameters_configuring-ingress
+      defaultCertificate: 
+        name: >-
+              @@External_LB_CertSecretName@@
+      domain: 
+        name: >-
+              @@External_LB_address@@
+      endpointPublishingStrategy: LoadBalancerService
+      namespaceSelector: @@my_namespace@@
+      tlsSecurityProfile:
+        type: Custom
+        custom:
+          ciphers:
+            - TLS_AES_256_GCM_SHA384
+            - TLS_AES_128_GCM_SHA256
+            - TLS_CHACHA20_POLY1305_SHA256
+            - ECDHE-ECDSA-AES256-GCM-SHA384
+            - ECDHE-RSA-AES256-GCM-SHA384
+            - ECDHE-ECDSA-AES128-GCM-SHA256
+            - ECDHE-RSA-AES128-GCM-SHA256
+            - ECDHE-ECDSA-CHACHA20-POLY1305
+            - ECDHE-RSA-CHACHA20-POLY1305
+          minTLSVersion: VersionTLS12
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: ingresscontroller.operator.openshift.io/deployment-ingresscontroller
+                  operator: In
+                  values:
+#                  - default
+                  - qsc-openshift-router
+                - key: ingresscontroller.operator.openshift.io/hash
+                  operator: NotIn
+                  values:
+                  - 53b40ac62800
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: ingresscontroller.operator.openshift.io/deployment-ingresscontroller
+                operator: In
+                values:
+#                - default
+                - qsc-openshift-router
+              - key: ingresscontroller.operator.openshift.io/hash
+                operator: In
+                values:
+                - 53b40ac62800
+            topologyKey: kubernetes.io/hostname
+      imagePullSecrets:
+      - name: qsc-openshift-router-image-pull-secret
+      containers:
+      - name: qsc-openshift-router
+        image: de.icr.io/qsc-ingress-test-registry/router_qsc:qsc_v1.0.1
+        imagePullPolicy: Always
+        env:
+#        - name: DEFAULT_CERTIFICATE_DIR
+#          value: /etc/pki/tls/private
+#        - name: ROUTER_CANONICAL_HOSTNAME
+#          value: @@External_LB_address@@
+        - name: ROUTER_IP_V4_V6_MODE
+          value: "v4only"
+        - name: ROUTER_CIPHERS
+          value: >-
+            TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305
+        - name: ROUTER_DEFAULT_BIND_CURVES
+          value: ""
+#        - name: ROUTER_DEFAULT_BIND_CURVES
+#          value: >-
+#            kyber512:prime256v1:secp384r1:secp521r1:X25519:X448:kyber768:kyber1024:p256_kyber512:p384_kyber768:p521_kyber1024
+#        - name: ROUTER_METRICS_TLS_CERT_FILE
+#          value: /etc/pki/tls/metrics-certs/tls.crt
+#        - name: ROUTER_METRICS_TLS_KEY_FILE
+#          value: /etc/pki/tls/metrics-certs/tls.key
+#        - name: ROUTER_METRICS_TYPE
+#          value: haproxy
+        - name: ROUTER_SERVICE_NAME
+          value: qsc-openshift-router
+        - name: ROUTER_SERVICE_NAMESPACE
+          value: @@my_namespace@@
+        - name: ROUTER_THREADS
+          value: "4"
+        - name: SSL_MIN_VERSION
+          value: TLSv1.2
+        - name: ROUTER_LOG_LEVEL
+          value: debug
+        - name: ROUTER_LOAD_BALANCE_ALGORITHM
+          value: leastconn
+#        - name: STATS_PASSWORD
+#          valueFrom:
+#            secretKeyRef:
+#              key: statsPassword
+#              name: router-stats-default
+#        - name: STATS_PORT
+#          value: "1936"
+#        - name: STATS_USERNAME
+#          valueFrom:
+#            secretKeyRef:
+#              key: statsUsername
+#              name: router-stats-default
+#        - name: TLS_CONFIG_FILE
+#          value: /var/lib/haproxy/conf/tls_config.json
+#
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 1936
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 1936
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+          failureThreshold: 3
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        - containerPort: 443
+          name: https
+          protocol: TCP
+#        - containerPort: 1936
+#          name: metrics
+#          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+#        volumeMounts:
+#        - mountPath: /etc/pki/tls/private
+#          name: default-certificate
+#          readOnly: true
+#        - mountPath: /etc/pki/tls/metrics-certs
+#          name: metrics-certs
+#          readOnly: true
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ""
+      priorityClassName: system-cluster-critical
+      restartPolicy: Always
+      schedulerName: default-scheduler
+#      securityContext:
+#        capabilities:
+#          drop:
+#            - KILL
+#            - MKNOD
+#            - SETGID
+#            - SETUID
+#          add:
+#            - NET_BIND_SERVICE
+#        runAsUser: 1000241000
+#        allowPrivilegeEscalation: true         
+#      serviceAccount: qsc-openshift-router
+#      serviceAccountName: qsc-openshift-router
+      serviceAccount: router
+      serviceAccountName: router
+      terminationGracePeriodSeconds: 30
+      volumes:
+#      - name: default-certificate
+#        secret:
+#          defaultMode: 420
+#          secretName: @@External_LB_CertSecretName@@
+#      - name: metrics-certs
+#        secret:
+#          defaultMode: 420
+#          secretName: @@External_LB_CertSecretName@@
+status: {}
+

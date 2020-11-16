@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx-controller
+  labels:
+    app: ingress-nginx-controller
+    app.kubernetes.io/name: ingress-nginx-controller
+    app.kubernetes.io/instance: ingress-nginx-controller
+    app.kubernetes.io/version: 0.34.1
+    app.kubernetes.io/component: controller
+  annotations:
+    service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type: public
+  namespace: @@my_namespace@@
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+  selector:
+    app: ingress-nginx-controller
+    app.kubernetes.io/name: ingress-nginx-controller
+    app.kubernetes.io/instance: ingress-nginx-controller
+    app.kubernetes.io/component: controller
+

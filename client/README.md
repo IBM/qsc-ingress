@@ -1,0 +1,5 @@
+## QSC-enabled Client
+
+A cURL client was implemented inside an Ubuntu v20.04LTS image. The cURL v7.72.0 uses nghttp2 v 1.41.0 to enable HTTP2. It was patched to enable specification of curves on the command line and uses the OpenSSL v 1.1.1g QSC-enabled version from the Open Quantum Safe project. Further patches were applied to display (in cURL verbose mode, using the -v flag) the curve name used for session key establishment as well as the type of certificate used to sign the TLS handshake messages. The latter also enables to verify any tests against QSC certificates, e,g. Dilithium. This to simplify the verification that indeed QSC curves (and also QSC certificates at a later point in time) are used during TLS session key establishment. Special care has been taken to separate the QSC-enabled cURL version from any legacy cURL version inside the image. For example, custom library symbols were used, such that any application leveraging the libcurl.so libraires could – at the same time – use the legacy cURL code as well as the QSC-enabled cURL code.
+
+Dockerfile and patches, build instructions and test usage can be found [here](./curl)

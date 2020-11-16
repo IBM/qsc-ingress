@@ -1,0 +1,44 @@
+--- openssl_oqs/include/openssl/ssl_original.h	2020-09-09 08:48:21.119703000 +0200
++++ openssl_oqs/include/openssl/ssl.h	2020-09-09 16:14:04.206402968 +0200
+@@ -1310,6 +1310,9 @@
+ # define SSL_CTRL_GET_SIGNATURE_NID              132
+ # define SSL_CTRL_GET_TMP_KEY                    133
+ # define SSL_CTRL_GET_OQS_KEM_CURVE_ID           134
++# define SSL_CTRL_GET_USED_GROUP_ID              135
++# define SSL_CTRL_GET_USED_GROUP_NID             136
++# define SSL_CTRL_GET_USED_SIGALG_NID            137
+ # define SSL_CERT_SET_FIRST                      1
+ # define SSL_CERT_SET_NEXT                       2
+ # define SSL_CERT_SET_SERVER                     3
+@@ -1460,6 +1463,12 @@
+         SSL_ctrl(s, SSL_CTRL_GET_MAX_PROTO_VERSION, 0, NULL)
+ #define SSL_get_oqs_kem_curve_id(s) \
+         SSL_ctrl(s, SSL_CTRL_GET_OQS_KEM_CURVE_ID, 0, NULL)
++#define SSL_get_used_group_id(s) \
++        SSL_ctrl(s, SSL_CTRL_GET_USED_GROUP_ID, 0, NULL)
++#define SSL_get_used_group_nid(s) \
++        SSL_ctrl(s, SSL_CTRL_GET_USED_GROUP_NID, 0, NULL)
++#define SSL_get_used_sigalg_nid(s) \
++        SSL_ctrl(s, SSL_CTRL_GET_USED_SIGALG_NID, 0, NULL)
+ 
+ /* Backwards compatibility, original 1.1.0 names */
+ # define SSL_CTRL_GET_SERVER_TMP_KEY \
+@@ -1475,6 +1484,8 @@
+ # define SSL_CTRL_SET_CURVES           SSL_CTRL_SET_GROUPS
+ # define SSL_CTRL_SET_CURVES_LIST      SSL_CTRL_SET_GROUPS_LIST
+ # define SSL_CTRL_GET_SHARED_CURVE     SSL_CTRL_GET_SHARED_GROUP
++# define SSL_CTRL_GET_USED_CURVE_ID    SSL_CTRL_GET_USED_GROUP_ID
++# define SSL_CTRL_GET_USED_CURVE_NID   SSL_CTRL_GET_USED_GROUP_NID
+ 
+ # define SSL_get1_curves               SSL_get1_groups
+ # define SSL_CTX_set1_curves           SSL_CTX_set1_groups
+@@ -1482,7 +1493,8 @@
+ # define SSL_set1_curves               SSL_set1_groups
+ # define SSL_set1_curves_list          SSL_set1_groups_list
+ # define SSL_get_shared_curve          SSL_get_shared_group
+-
++# define SSL_get_used_curve_id         SSL_get_used_group_id
++# define SSL_get_used_curve_nid        SSL_get_used_group_nid
+ 
+ # if OPENSSL_API_COMPAT < 0x10100000L
+ /* Provide some compatibility macros for removed functionality. */

@@ -1,0 +1,271 @@
+# =====================================================
+# ------------------BUILD STAGE 1----------------------
+
+FROM alpine:3.11.6 as builder
+LABEL stage=builder
+
+USER root
+
+# -----------------------------------------------------
+# ==> SOME GOODIES
+
+# Number of procs to use during build
+ARG NUMPROC=16
+
+
+# -----------------------------------------------------
+# ==> VERSION CONTROL via ARG
+
+# OpenSSL (see here: https://www.openssl.org/source/)
+ARG OpenSSL_version=openssl-1.1.1g
+# PGP KeyID Matt Caswell & Richard Levitte (see here: https://www.openssl.org/community/omc.html)
+ARG OpenSSL_KeyID1=8657ABB260F056B1E5190839D9C4D26D0E604491
+ARG OpenSSL_KeyID2=7953AC1FBC3DC8B3B292393ED5E9E43F7DF9EE8C
+
+# nghttp2 stuff
+ARG nghttp2_Branch=master
+ARG nghttp2_RELEASE_TAG=v1.41.0
+ARG nghttp2_Commit=8f7b008b158e12de0e58247afd170f127dbb6456
+ARG nghttp2_KeyID_github=7E8403D5D673C366
+
+#cURL stuff
+ARG cURL_version=curl-7.72.0
+ARG CURL_KeyID1=914C533DF9B2ADA2204F586D78E11C6B279D5C91
+ARG CURL_KeyID2=4461EAF0F8E9097F48AF0555F9FEAFF9D34A1BDB
+ARG CURL_KeyID3=27EDEAF22F3ABCEB50DB9A125CC908FDB71E12C2
+
+# Open Quantum Safe stuff
+# lib oqs related
+ARG OQS_liboqs_Branch=master
+ARG OQS_liboqs_Commit=9ed69af2c5c8923ea2674558dd1d37f5d498ee51
+# OQS OpenSSL related
+ARG OQS_OpenSSL_Branch=OQS-OpenSSL_1_1_1-stable
+ARG OQS_OpenSSL_Commit=824d0cf7be97f9ab717e4bc92bbce2759ca7c26c
+# Github verification key 
+ARG OQS_KeyID_github=4AEE18F83AFDEB23
+
+# Keyserver
+ARG KEY_SERVER="keys.gnupg.net"
+
+# -----------------------------------------------------
+# ==> PREREQUISITES USED DURING BUILD PROCESS
+ARG install_dir="/opt/quantum_safe_crypto"
+RUN apk update && apk upgrade && \
+    apk add linux-headers build-base gnupg perl curl gnutls gnutls-dev \
+            libcurl grpc gcompat git bash zlib zlib-dev dpkg && \
+    mkdir /thirdparty && \
+    mkdir $install_dir && \
+    printf "\033[1;33m" && gcc --version && printf "\033[0m"
+
+# -----------------------------------------------------
+# ==> LOAD VERIFICATION KEYS AND TRUST THOSE KEYS
+RUN \
+#   Receiving verification keys
+    gpg --keyserver $KEY_SERVER --recv-keys $OpenSSL_KeyID1 && \
+    gpg --keyserver $KEY_SERVER --recv-keys $OpenSSL_KeyID2 && \
+    gpg --keyserver $KEY_SERVER --recv-keys $CURL_KeyID1 && \
+    gpg --keyserver $KEY_SERVER --recv-keys $CURL_KeyID2 && \
+    gpg --keyserver $KEY_SERVER --recv-keys $CURL_KeyID3 && \
+    gpg --keyserver $KEY_SERVER --recv-keys $nghttp2_KeyID_github && \
+    gpg --keyserver $KEY_SERVER --recv-keys $OQS_KeyID_github && \
+#   We trust the above keys
+    gpg --list-keys --fingerprint --with-colons | sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' | gpg --import-ownertrust
+ 
+# ----------------SYSTEM_UPDATES-----------------------
+# -----------------------------------------------------
+# ==> OPENSSL BUILD FROM (VERIFIED) SOURCE 
+# (for SYSTEM and such that OQS has a base)
+
+RUN cd /thirdparty &&  \
+    wget https://www.openssl.org/source/${OpenSSL_version}.tar.gz && \
+    wget https://www.openssl.org/source/${OpenSSL_version}.tar.gz.asc && \
+        gpg --verify $OpenSSL_version.tar.gz.asc ${OpenSSL_version}.tar.gz && \
+        tar -xzf ${OpenSSL_version}.tar.gz && \
+        rm ${OpenSSL_version}.tar* && \
+    cd /thirdparty/${OpenSSL_version} && \
+    cp ./Configurations/10-main.conf . && \
+    ./config \
+        --release \
+        -DFAST_PCLMUL -DECP_NISTZ256_ASM -DO3 \
+        -Wl,--enable-new-dtags,-rpath,'$(LIBRPATH)' \
+        --with-rand-seed=rdcpu,os \
+        enable-ec_nistp_64_gcc_128 \
+        enable-tls1_3 \
+        no-ssl no-tls1 no-tls1_1 \
+        no-afalgeng no-tests && \
+    make -j $NUMPROC && make -j $NUMPROC install_sw
+
+
+# ----------------QSC_RELATED_UPDATES------------------
+# -----------------------------------------------------
+
+# -----------------------------------------------------
+# ==> Get the patches 
+
+# We require the following patches
+# - for cURL to have --curves (e.g. --curves kyber1024, --curves prime256v1 
+# - for cURL to display curve info in verbose (-v) mode
+# - for OQS_OpenSSL to enable access to curve & signature NIDs which are used for TLS 
+#   session key establishment and certificate signatures such that cURL can 
+#   display those in verbose mode
+ADD patch-oqs-${cURL_version} \
+    patch-oqs-openssl-s3_lib-c \
+    patch-oqs-openssl-ssl-h \
+    /thirdparty/
+
+
+# -----------------------------------------------------
+# ==> OQS-OpenSSL BUILD FROM SOURCE (with QSC capabilities)
+
+RUN apk add ninja doxygen cmake && \
+    cd /thirdparty && \
+    git clone --single-branch --branch $OQS_OpenSSL_Branch https://github.com/open-quantum-safe/openssl.git OQSopenssl && \
+    cd OQSopenssl && mkdir oqs && \
+    git clone --single-branch --branch $OQS_liboqs_Branch https://github.com/open-quantum-safe/liboqs.git && \
+         cd liboqs && \
+         git verify-commit --verbose $OQS_liboqs_Commit && \
+         git checkout $OQS_liboqs_Commit && \
+         mkdir build && cd build && \
+         printf "\033[1;33m" && cmake -LAH .. && printf "\033[0m" && rm -rf * && \
+         cmake -GNinja \
+               -DBUILD_SHARED_LIBS=OFF \
+               -DCMAKE_INSTALL_PREFIX=/thirdparty/OQSopenssl/oqs \
+               -DOQS_ENABLE_KEM_bike1_l1_cpa=OFF \ 
+               -DOQS_ENABLE_KEM_bike1_l1_fo=OFF \
+               -DOQS_ENABLE_KEM_bike1_l3_cpa=OFF \
+               -DOQS_ENABLE_KEM_bike1_l3_fo=OFF \
+               .. && \
+         ninja  && ninja install
+RUN cd /thirdparty/OQSopenssl && \
+    sed -i  '/"linux-generic32" =>*/ a shlib_variant =>"_oqs",' Configurations/10-main.conf && \
+    git verify-commit --verbose $OQS_OpenSSL_Commit || exit && \
+    git checkout $OQS_OpenSSL_Commit && \
+   ./Configure linux-x86_64 \
+        --prefix=$install_dir \
+        -I/thirdparty/OQSopenssl/liboqs/build/include \
+        -L/thirdparty/OQSopenssl/liboqs/build/lib -loqs \
+        -DFAST_PCLMUL -DECP_NISTZ256_ASM -DO3 \
+        -DOQS_DEFAULT_GROUPS="prime256v1:X25519:secp384r1:secp521r1:X448:kyber512:kyber768:kyber1024:p256_kyber512:p384_kyber768:p521_kyber1024" \
+        -Wl,--enable-new-dtags,-rpath,'$(LIBRPATH)' \
+        --with-rand-seed=rdcpu,os \
+        enable-ec_nistp_64_gcc_128 \
+        enable-tls1_3 no-ssl no-tls1 no-tls1_1 \ 
+        no-aria no-bf no-blake2 no-camellia no-cast \
+        no-dsa no-idea no-md4 no-mdc2 no-ocb \
+        no-poly1305 no-rc2 no-rc4 no-rmd160 no-scrypt \
+        no-siphash no-sm2 no-sm3 no-sm4 no-whirlpool \
+        no-ec2m no-gost \
+        no-afalgeng no-tests \
+        shared threads \
+        -lm \
+        && \
+    printf "\033[1;33m" && \
+    patch -p1 -i /thirdparty/patch-oqs-openssl-s3_lib-c && \
+    patch -p1 -i /thirdparty/patch-oqs-openssl-ssl-h && \
+    printf "\033[0m" && \
+    make -j $NPROC && make -j $NPROC install_sw
+
+RUN ln -s $install_dir/lib/libcrypto_oqs.so.1.1 \
+          $install_dir/lib/libcrypto_oqs.so  && \
+    ln -s $install_dir/lib/libssl_oqs.so.1.1 \
+          $install_dir/lib/libssl_oqs.so 
+
+# -----------------------------------------------------
+# ==> NGHTTP2 BUILD FROM SOURCE (as prerequisite for cURL)
+RUN apk add automake cunit cunit-dev pkgconfig autoconf libtool cmake musl-dev & \
+    cd /thirdparty && \
+    git clone https://github.com/nghttp2/nghttp2.git && \
+    cd nghttp2 && \
+    echo "starting nghttp2 $nghttp2_RELEASE_TAG tag verification & checkout" && \
+    git verify-tag $nghttp2_RELEASE_TAG && \
+    git checkout $nghttp2_RELEASE_TAG && \
+    echo "starting nghttp2 build" && \
+    autoreconf -i && automake && autoconf  && \
+    ./configure \
+          CFLAGS="-O3 -fPIC" \
+          OPENSSL_LIBS="-L/thirdparty/install/lib -lssl_oqs -lcrypto_oqs" \
+          --enable-lib-only=yes \
+          --with-neverbleed=yes \
+          --prefix=$install_dir && \
+    make -j $NPROC && make -j $NPROC check && make -j $NPROC install
+
+
+
+# -----------------------------------------------------
+# ==> cURL BUILD FROM SOURCE (with OQS for QSC capabilities)
+
+
+RUN cd /thirdparty && mkdir curl && \
+    wget https://curl.haxx.se/download/${cURL_version}.tar.gz -O curl.tar.gz && \
+    wget https://curl.haxx.se/download/${cURL_version}.tar.gz.asc -O curl.tar.gz.asc && \
+         gpg --verify curl.tar.gz.asc curl.tar.gz && \
+         tar -xzf curl.tar.gz -C /thirdparty/curl --strip-components=1 && \
+         rm -rf curl.tar* && \
+    cd curl && \
+    # ensure unique library symbols
+    sed -i 's#versioned_symbols_flavour="OPENSSL_"#versioned_symbols_flavour="OPENSSL_QSC_"#' ./configure && \
+    printf "\033[1;33m" && patch -p2 -i /thirdparty/patch-oqs-${cURL_version} && printf "\033[0m" &&\
+    ./configure \
+         LIBS="-lssl_oqs -lcrypto_oqs" \
+         LDFLAGS="-Wl,--enable-new-dtags,-rpath,$install_dir/lib -L$install_dir/lib" \
+         CFLAGS="-O3 -fPIC" \
+         --prefix=$install_dir \
+         --program-suffix="_QSC" \
+         --without-default-ssl-backend \
+         --with-ssl=$install_dir \
+         --with-nghttp2=$install_dir \
+         --enable-optimize --enable-libcurl-option --enable-libgcc --enable-shared \
+         --enable-ldap=no --enable-ipv6 --enable-versioned-symbols \
+         --disable-manual \
+         --without-librtmp --without-libidn2 \
+         --without-gnutls --without-mbedtls --without-cyassl --without-wolfssl \
+         --without-mesalink  --without-nss --without-libpsl --without-libmetalink && \
+    make -j $NPROC && echo "Installing curl_oqs" && make install 
+
+
+# -----------------------------------------------------
+# DEBUG ONLY: let's get some insights of what has happened
+RUN echo -e "\n\033[1;32m======================SYSTEM VERSIONS============================\n" \
+    && \
+    echo -e "\033[1;32mOPENSSL VERSION AND LIBRARIES" && openssl version && ldd $(which openssl) && \
+    echo -e "\033[0m"  \
+    && \
+    echo -e "\n\033[1;32m======================QSC VERSIONS===============================" && echo -e "\033[0m"  \
+    && \
+    echo -e "\033[1;32mQSC OPENSSL VERSION AND LIBRARIES" && \
+         $install_dir/bin/openssl version && \
+         ldd $install_dir/bin/openssl && \
+         printf "\033[1;32mLibraries for libssl_oqs.so.1.1:\n" && \
+         ldd $install_dir/lib/libssl_oqs.so.1.1 && \
+         printf "\033[1;32mLibraries for libcrypto_oqs.so.1.1:\n" && \
+         ldd $install_dir/lib/libcrypto_oqs.so.1.1 && \
+    echo -e "\033[0m" \
+    && \
+    echo -e "\033[1;32mQSC CURL VERSION AND LIBRARIES" && $install_dir/bin/curl_QSC --version && \
+    printf "\033[1;32mLibraries for curl executable:\n" && ldd $install_dir/bin/curl_QSC && \
+    printf "\033[1;32mLibraries for libcurl.so.4:\n" && ldd $install_dir/lib/libcurl.so.4 && \
+    printf "\033[1;32mLibraries for libnghttp2.so.14:\n" && ldd $install_dir/lib/libnghttp2.so.14 && \
+    echo -e "\033[0m" 
+
+
+
+# =====================================================
+# ------------------BUILD STAGE 2----------------------
+
+FROM alpine:3.11.6 as docker_image
+LABEL stage=docker_image 
+COPY --from=builder $install_dir $install_dir
+RUN apk update && apk upgrade && apk add bash
+# -----------------------------------------------------
+# get ready for tesing it on a command line
+# QSC-enabled cURL executable is found at $install_dir/bin/curl_QSC (by default /opt/quantum_safe_crypto/bin/curl_QSC)
+RUN mkdir /curl_workdir
+WORKDIR /curl_workdir
+
+ENTRYPOINT /bin/bash
+
+
+
+
+
+

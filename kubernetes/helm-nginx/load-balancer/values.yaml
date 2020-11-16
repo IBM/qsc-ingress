@@ -1,0 +1,8 @@
+# Default values for qsc-nginx.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+service:
+  name: helm-ingress-controller
+  type: LoadBalancer
+
