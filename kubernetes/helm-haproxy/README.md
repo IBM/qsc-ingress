@@ -13,10 +13,9 @@ It contains a reference implementation for deploying a custom QSC enabled HAProx
 Configuration for values.yaml in 'qsc-haproxy' directory
 
 The following table lists the configurable parameters of the Qsc-haproxy chart and their default values.
-
 | Parameter                | Description             | Default        |
 | ------------------------ | ----------------------- | -------------- |
-| `imageCredentials.registry` | Registry for the image. image credentials info that will be used to create an image pull secret | `"de.icr.io/qsc-ingress-test-registry"` |
+| `imageCredentials.registry` | Registry for the image. image credentials info that will be used to create an image pull secret. an image pull secret with these credentials will be created only if "imagepullsecret.name" is specified in values.yaml | `"de.icr.io/qsc-ingress-test-registry"` |
 | `imageCredentials.username` | Username for accessing the registry | `"iamapikey"` |
 | `imageCredentials.password` | Password | `"PasswordGoesHere"` |
 | `imageCredentials.email` | Email | `"temp@.ibm.com"` |

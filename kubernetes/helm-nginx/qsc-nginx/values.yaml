@@ -2,8 +2,8 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-imageCredentials: # image credentials info that will be used to create an image pull secret
-  registry: de.icr.io/qsc-ingress-test-registry # registry for the image. image credentials info that will be used to create an image pull secret
+imageCredentials: # image credentials info that will be used to create an image pull secret. An image pull secret with these credentials will be created only if "imagePullSecret.name" is specified in values.yaml
+  registry: de.icr.io/qsc-ingress-test-registry # registry for the image. image credentials info that will be used to create an image pull secret. An image pull secret with these credentials will be created only if "imagePullSecret.name" is specified in values.yaml
   username: iamapikey # username for accessing the registry
   password: PasswordGoesHere # password
   email: temp@.ibm.com # email
@@ -99,4 +99,3 @@ ingressController:
     repository: docker.io/qscingresspoc/qsc_nginx_ingress_controller # repository info for the ingress controller
     tag: v0.40.2 # tag to use
     pullPolicy: Always # pull policy
-
