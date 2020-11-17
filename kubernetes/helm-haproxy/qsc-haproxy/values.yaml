@@ -2,44 +2,42 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-imageCredentials:
-  registry: de.icr.io/qsc-ingress-test-registry
-  username: iamapikey
-  password: PasswordGoesHere
-  email: temp@ibm.com
+imageCredentials: # image credentials info that will be used to create an image pull secret. An image pull secret with these credentials will be created only if "imagePullSecret.name" is specified in values.yaml
+  registry: de.icr.io/qsc-ingress-test-registry # registry for the image. image credentials info that will be used to create an image pull secret. An image pull secret with these credentials will be created only if "imagePullSecret.name" is specified in values.yaml
+  username: iamapikey # username for accessing the registry
+  password: PasswordGoesHere # password
+  email: temp@.ibm.com # email
 
-imagePullSecret:
-  name: qsc-ingress-image-pull-secret
+# uncomment the imagePullSecret to create a secret with imageCredentials specified above
+# imagePullSecret: 
+#   name: qsc-ingress-image-pull-secret # name of the image pull secret that will be created
 
 client:
   image:
-    repository: de.icr.io/qsc-ingress-test-registry/curl-qsc
-    tag: latest
-    pullPolicy: IfNotPresent
+    repository: docker.io/qscingresspoc/qsc_curl # info required for testing the QSC setup using a QSC enabled curl client. repository info for the QSC enabled curl client
+    tag: latest # tag to use
+    pullPolicy: Always # pull policy
 
-backend:
-  replicaCount: 3
+backend: # info related to the sample backend that the ingress controller will route to
+  replicaCount: 3 # no. of replicas for the backend deployment
 
   image:
-    #repository:  de.icr.io/qsc-ingress-test-registry/nginx-mod-backend
-    repository:  de.icr.io/qsc-ingress-test-registry/recovered-nginx-mod-backend
-    tag: latest
-    pullPolicy: Always
+    repository:  docker.io/qscingresspoc/custom_backend # repository info for the sample backend
+    tag: latest # tag to use
+    pullPolicy: Always # pull policy
 
-  imagePullSecrets:  
-  - name: qsc-ingress-image-pull-secret
+# uncomment the imagePullSecret to use this image secret
+  # imagePullSecrets:  
+  # - name: qsc-ingress-image-pull-secret # name of the image pull secret
   
-  nameOverride: ""
-  fullnameOverride: "haproxy"
+  nameOverride: "" # used to set the label 'app.kubernetes.io/name' for the backend. If left empty, the default chart name will be used
+  fullnameOverride: "custom-backend" # used to set the name of the backend deployment and service.
 
   serviceAccount:
-    # Specifies whether a service account should be created
-    create: true
-    # The name of the service account to use.
-    # If not set and create is true, a name is generated using the fullname template
-    name: ""
+    create: true # specifies whether a service account should be created
+    name: "" # the name of the service account to use. If not set and create is true, a name is generated using the fullname template
 
-  podSecurityContext: {}
+  podSecurityContext: {} # Pod security context
     # fsGroup: 2000
 
   securityContext: {}
@@ -51,10 +49,10 @@ backend:
     # runAsUser: 1000
 
   service:
-    type: ClusterIP
-    port: 80
+    type: ClusterIP # service type
+    port: 80 # port where the service is exposed
 
-  nodeSelector: {}
+  nodeSelector: {} # node selector information
 
   tolerations: []
 
@@ -72,34 +70,34 @@ backend:
   #   cpu: 100m
   #   memory: 128Mi
 
-ingress:
-  enabled: true
-  class: ingress-haproxy-class
-  annotations: 
+ingress: # informaton related to configuring the ingress
+  enabled: true # if set to true, the ingress resource will be deployed
+  class: ingress-haproxy-class # ingress class name used to target an ingress class and also deploy an ingress class resource with this name
+  annotations: # annotations for the ingress resource
     # See here for all options: https://github.com/haproxytech/kubernetes-ingress/tree/master/documentation
     ingress.class: "ingress-haproxy-class"
-    haproxy.org/ssl-redirect: "true"
+    haproxy.org/ssl-redirect: "true" # set to true to disable HTTP access. Only HTTPS access will be allowed if this is set to true
 
-  hosts:
+  hosts: # The hosts information to specify the host and the paths. This will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain
     - host: qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud
       paths: 
         - /
 
-  tls: 
+  tls: # TLS related information. This will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain and the secret name configured in the namespace
     - secretName: qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001
       hosts:
         - qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud
 
 
 ingressController:
-  # This name should match the service name in the load-balancer chart
-  name: helm-haproxy-ingress-controller
+  name: helm-haproxy-ingress-controller # This name should match the service name in the load-balancer chart. If 'deploy.sh' script is used, it will automatically ensure that this matches and overrides to match if necessary
   
-  imagePullSecrets:  
-  - name: qsc-ingress-image-pull-secret
+ # uncomment the imagePullSecret to use this image secret
+  #imagePullSecrets:  
+  #- name: qsc-ingress-image-pull-secret # name of the image pull secret
 
   image:
-    repository:  de.icr.io/qsc-ingress-test-registry/ingress_haproxy_qsc
-    tag: v1.4.7
-    pullPolicy: Always
+    repository:  docker.io/qscingresspoc/qsc_haproxy_ingress_controller # repository info for the ingress controller
+    tag: v1.4.7 # tag to use
+    pullPolicy: Always # pull policy
 

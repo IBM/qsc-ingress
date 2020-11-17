@@ -1,6 +1,6 @@
-# Nginx Ingress controller on IBM Cloud
+# HAProxy Ingress controller on IBM Cloud
 
-It contains a reference implementation for deploying a custom QSC enabled Nginx ingress controller in IBM cloud
+It contains a reference implementation for deploying a custom QSC enabled HAProxy ingress controller in IBM cloud
 
 ## Prerequisites
 
@@ -10,10 +10,9 @@ It contains a reference implementation for deploying a custom QSC enabled Nginx 
 
 ### Helm Configuration
 
-Configuration for values.yaml in 'qsc-nginx' directory
+Configuration for values.yaml in 'qsc-haproxy' directory
 
-The following table lists the configurable parameters of the Qsc-nginx chart and their default values.
-
+The following table lists the configurable parameters of the Qsc-haproxy chart and their default values.
 | Parameter                | Description             | Default        |
 | ------------------------ | ----------------------- | -------------- |
 | `imageCredentials.registry` | Registry for the image. image credentials info that will be used to create an image pull secret. an image pull secret with these credentials will be created only if "imagepullsecret.name" is specified in values.yaml | `"de.icr.io/qsc-ingress-test-registry"` |
@@ -40,20 +39,20 @@ The following table lists the configurable parameters of the Qsc-nginx chart and
 | `backend.affinity` |  | `{}` |
 | `backend.resources` |  | `{}` |
 | `ingress.enabled` | If set to true, the ingress resource will be deployed | `true` |
-| `ingress.class` | Ingress class name used to target an ingress class and also deploy an ingress class resource with this name | `"nginx"` |
-| `ingress.annotations.nginx.ingress.kubernetes.io/ssl-redirect` | Set to true to disable http access. only https access will be allowed if this is set to true | `"true"` |
+| `ingress.class` | Ingress class name used to target an ingress class and also deploy an ingress class resource with this name | `"ingress-haproxy-class"` |
+| `ingress.annotations.ingress.class` |  | `"ingress-haproxy-class"` |
+| `ingress.annotations.haproxy.org/ssl-redirect` | Set to true to disable http access. only https access will be allowed if this is set to true | `"true"` |
 | `ingress.hosts` | The hosts information to specify the host and the paths. this will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain | `[{"host": "qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud", "paths": ["/"]}]` |
 | `ingress.tls` | Tls related information. this will be overridden if the 'deploy.sh' script is used for deployment and will point to the configured subdomain and the secret name configured in the namespace | `[{"secretName": "qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001", "hosts": ["qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0001.eu-de.containers.appdomain.cloud"]}]` |
-| `ingressController.name` | This name should match the service name in the load-balancer chart. if 'deploy.sh' script is used, it will automatically ensure that this matches and overrides to match if necessary | `"helm-ingress-controller"` |
-| `ingressController.image.repository` | Repository info for the ingress controller | `"docker.io/qscingresspoc/qsc_nginx_ingress_controller"` |
-| `ingressController.image.tag` | Tag to use | `"v0.40.2"` |
+| `ingressController.name` | This name should match the service name in the load-balancer chart. if 'deploy.sh' script is used, it will automatically ensure that this matches and overrides to match if necessary | `"helm-haproxy-ingress-controller"` |
+| `ingressController.image.repository` | Repository info for the ingress controller | `"docker.io/qscingresspoc/qsc_haproxy_ingress_controller"` |
+| `ingressController.image.tag` | Tag to use | `"v1.4.7"` |
 | `ingressController.image.pullPolicy` | Pull policy | `"Always"` |
-
 
 
 ## Wrapper script
 
-The wrapper script 'deploy.sh' can be used to test and deploy a fully functional Nginx ingress controller with a sample backend in IBM cloud. It supports the following -
+The wrapper script 'deploy.sh' can be used to test and deploy a fully functional HAProxy ingress controller with a sample backend in IBM cloud. It supports the following -
 
 * Create / delete a namespace
 * Install / uninstall a loadbalancer service for the ingress controller
@@ -63,7 +62,7 @@ The wrapper script 'deploy.sh' can be used to test and deploy a fully functional
 
 ### Deployment
 
-The script uses the values.yaml file in the 'load-balancer' and 'qsc-nginx' directory to deploy the necessary components in the cluster. 
+The script uses the values.yaml file in the 'load-balancer' and 'qsc-haproxy' directory to deploy the necessary components in the cluster. 
 
 The script supports the following flags -
 ```
@@ -134,16 +133,16 @@ The script supports the following flags -
 ### 1. Install the loadbalancer, create a DNS subdomain and deploy the ingress controller along with a backend and the ingress resource
 
 ```
-./deploy.sh  -i lb -i namespace -i controller -c qsc-ingress-cluster -n helm-nginx-qsc -p qsc-nginx-release
+./deploy.sh  -i lb -i namespace -i controller -c qsc-ingress-cluster -n helm-haproxy-qsc -p qsc-haproxy-release
 ```
 
 The following actions are performed in this order
 
-* Create a namespace "helm-nginx-qsc" in the kubernetes cluster
-* Deploy the loadbalancer service for the Nginx ingress controller in that namespace
+* Create a namespace "helm-haproxy-qsc" in the kubernetes cluster
+* Deploy the loadbalancer service for the HAProxy ingress controller in that namespace
 * Set up a DNS subdomain for the loadbalancer service and get the certs and keys for the subdomain
-* Deploy the Nginx ingress controller, default backend, sample backend and the ingress resource
-  * When deploying the ingress controller and the ingress, the following values in the 'qsc-nginx/values.yaml' file will be overridden
+* Deploy the HAProxy ingress controller, default backend, sample backend and the ingress resource
+  * When deploying the ingress controller and the ingress, the following values in the 'qsc-haproxy/values.yaml' file will be overridden
     * *ingress.hosts* to use the DNS subdomain and path set to default "/"
     * *ingress.tls* to set the secret name to what was configured during DNS subdomain setup and hosts to DNS subdomain
     * *ingressController.name* to what was configured as the loadbalancer service name
@@ -151,7 +150,7 @@ The following actions are performed in this order
 ### 2. Uninstall the ingress controller, ingress resource and the backend deployment
 
 ```
-./deploy.sh  -u controller -c qsc-ingress-cluster -n helm-nginx-qsc -p qsc-nginx-release
+./deploy.sh  -u controller -c qsc-ingress-cluster -n helm-haproxy-qsc -p qsc-haproxy-release
 ```
 
 ### 3. Install only the ingress controller, ingress resource and the backend deployment
@@ -159,7 +158,7 @@ The following actions are performed in this order
 This is useful in scenarios where the ingress controller needs to be modified or executed with different arguments but does not require a change for the load balancer service or the DNS subdomain. It is recommended in such situations to not re-deploy the load-balancer service. Re-deploying the load-balancer service will result in a new external loadbalancer host and then a new DNS subdomain will need to be configured or existing DNS sub domain replaced to map to the newly deployed ladbalancer service.
 
 ```
-./deploy.sh  -i controller -c qsc-ingress-cluster -n helm-nginx-qsc -p qsc-nginx-release -s helm-ingress-controller
+./deploy.sh  -i controller -c qsc-ingress-cluster -n helm-haproxy-qsc -p qsc-haproxy-release -s helm-ingress-controller
 ```
 Sample output
 ```
@@ -171,9 +170,9 @@ LoadBalancer Service name: helm-ingress-controller
 External LB Host: 5c465617-eu-de.lb.appdomain.cloud
 DNS subdomain: qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0003.eu-de.containers.appdomain.cloud
 Cert secret name: qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0003
-NAME: qsc-nginx-release-controller
+NAME: qsc-haproxy-release-controller
 LAST DEPLOYED: Mon Nov  9 14:01:27 2020
-NAMESPACE: helm-nginx-qsc
+NAMESPACE: helm-haproxy-qsc
 STATUS: deployed
 REVISION: 1
 NOTES:
@@ -186,14 +185,14 @@ Note that the previous command requires the '-s' flag to target the deployed loa
 
 To list all the deployed load-balancer service use the '-l'  flag. Example -
 ```
-./deploy.sh -l -n helm-nginx-qsc 
+./deploy.sh -l -n helm-haproxy-qsc 
 ```
 The output of this command can be used to specify the argument for the '-s' flag
 
 ### 4. Test that the ingress controller is QSC enabled and supports different key exchange mechanisms
 
 ```
-./deploy.sh -t -n helm-nginx-qsc -p qsc-nginx-release
+./deploy.sh -t -n helm-haproxy-qsc -p qsc-haproxy-release
 ```
 
 This will run tests against the ingress controller using different curves.
@@ -229,7 +228,7 @@ Pod custom-backend-x25519-test pending
 Pod custom-backend-x25519-test succeeded
 NAME: test-release-controller
 LAST DEPLOYED: Sat Nov  7 11:35:29 2020
-NAMESPACE: helm-qsc
+NAMESPACE: helm-haproxy-qsc
 STATUS: deployed
 REVISION: 1
 TEST SUITE:     custom-backend-x25519-test
@@ -265,7 +264,7 @@ NOTES:
 ### 5. Install all the components but do not create a new DNS subdomain
 
 ```
-./deploy.sh  -i lb  -i controller -c qsc-ingress-cluster -n helm-nginx-qsc -p qsc-nginx-release -r qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0002.eu-de.containers.appdomain.cloud
+./deploy.sh  -i lb  -i controller -c qsc-ingress-cluster -n helm-haproxy-qsc -p qsc-haproxy-release -r qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0002.eu-de.containers.appdomain.cloud
 ```
 
 This will first install a load-balancer service. Instead of creating a new DNS subdomain for the load-balancer it will reconfigure the existing subdomain '*qsc-ingress-cluster-d465a2b8669424cc1f37658bec09acda-0002.eu-de.containers.appdomain.cloud*' to point to the deployed loadbalancer.
