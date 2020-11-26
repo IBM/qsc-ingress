@@ -75,10 +75,10 @@ RUN cd /thirdparty && \
          cmake -GNinja \
                -DBUILD_SHARED_LIBS=OFF \
                -DCMAKE_INSTALL_PREFIX=/thirdparty/OQSopenssl/oqs \
-               -DOQS_ENABLE_KEM_bike1_l1_cpa=OFF \ 
-               -DOQS_ENABLE_KEM_bike1_l1_fo=OFF \
-               -DOQS_ENABLE_KEM_bike1_l3_cpa=OFF \
-               -DOQS_ENABLE_KEM_bike1_l3_fo=OFF \
+#               -DOQS_ENABLE_KEM_bike1_l1_cpa=OFF \ 
+#               -DOQS_ENABLE_KEM_bike1_l1_fo=OFF \
+#               -DOQS_ENABLE_KEM_bike1_l3_cpa=OFF \
+#               -DOQS_ENABLE_KEM_bike1_l3_fo=OFF \
                -DOQS_USE_OPENSSL=ON \
                .. && \
          ninja  && ninja install
@@ -96,8 +96,8 @@ RUN cd /thirdparty/OQSopenssl && \
         no-aria no-bf no-blake2 no-camellia no-cast \
         no-dsa no-idea no-md4 no-mdc2 no-ocb \
         no-poly1305 no-rc2 no-rc4 no-rmd160 no-scrypt \
-        no-siphash no-sm2 no-sm3 no-sm4 no-whirlpool \
-        no-ec2m no-gost \
+        no-siphash no-sm2 no-sm3 no-sm4 no-whirlpool no-gost \
+ #       no-ec2m \
         no-afalgeng no-tests \
         shared threads \
         -lm \
