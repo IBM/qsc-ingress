@@ -1,6 +1,8 @@
 ## HAproxy-based custom router for ROKS
 The custom router for OpenShift is implemented in a RedHat UBI v8.2 image and is based on the HAproxy router provided by the OKD v4.5.0 (August 2020) distribution. However, the basic HAproxy app was replaced by its version v2.2.2, and the underlaying OpenSSL libraries were replaced by their QSC-enabled v1.1.1g equivalents provided by the Open Quantum Safe project built from verified sources. The custom OpenShift router was successfully tested in a HA deployment in the IBM Cloud with OpenShift version 4.4.20. 
 
+Note: We've chosen OKD for the sole reason that experiments can be carried out without the need for a Red Hat account. It should be straight forward to adapt the 2nd build stage in the Dockerfile to pull a HAproxy-router from Red Hat if this is preferred. In such a case, deployment YAMLs also might need to be slightly adapted to set router parameters. 
+
 ### Build the image
 
 ```
