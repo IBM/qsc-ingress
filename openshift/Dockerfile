@@ -233,7 +233,7 @@ LABEL stage=configuration_provider
 # RT using linux kernel aio
 #libc ABIs: UNIQUE IFUNC
 
-# ==> As we can see, the above is all old crap - hence we'll only grab the configuration 
+# ==> As we can see, the above are all fairly old versions - hence we'll only grab the configuration 
 #     files from this image, but replace all the rest with new stuff.
 #     However, we'll then need to make sure in the next stage that the user and workdir exists and 
 #     we'll copy stuff otherwise not available (e.g. openshift-router, python helpers, etc) 
