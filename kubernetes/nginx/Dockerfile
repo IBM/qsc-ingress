@@ -21,6 +21,16 @@ ARG OpenSSL_version=openssl-1.1.1g
 ARG OpenSSL_KeyID1=8657ABB260F056B1E5190839D9C4D26D0E604491
 ARG OpenSSL_KeyID2=7953AC1FBC3DC8B3B292393ED5E9E43F7DF9EE8C
 
+# Open Quantum Safe stuff
+# lib oqs related
+ARG OQS_liboqs_Branch=master
+ARG OQS_liboqs_Commit=9ed69af2c5c8923ea2674558dd1d37f5d498ee51
+# OQS OpenSSL related
+ARG OQS_OpenSSL_Branch=OQS-OpenSSL_1_1_1-stable
+ARG OQS_OpenSSL_Commit=824d0cf7be97f9ab717e4bc92bbce2759ca7c26c
+# Github verification key 
+ARG OQS_KeyID_github=4AEE18F83AFDEB23
+
 # -----------------------------------------------------
 # ==> PREREQUISITES USED DURING BUILD PROCESS
 
@@ -70,6 +80,7 @@ RUN cd /thirdparty && \
     cd OQSopenssl && mkdir oqs && \
     git clone --branch master https://github.com/open-quantum-safe/liboqs.git && \
          cd liboqs && \
+         git checkout $OQS_liboqs_Commit && \
          mkdir build && cd build && \
          printf "\033[1;33m" && cmake -LAH .. && printf "\033[0m" && rm -rf * && \
          cmake -GNinja \
@@ -84,6 +95,7 @@ RUN cd /thirdparty && \
          ninja  && ninja install
 
 RUN cd /thirdparty/OQSopenssl && \
+    git checkout $OQS_OpenSSL_Commit && \
    ./Configure linux-x86_64 \
         --prefix=/thirdparty/install/openssl_oqs \
         -I/thirdparty/OQSopenssl/liboqs/build/include \
