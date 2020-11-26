@@ -137,9 +137,9 @@ RUN apk add ninja doxygen cmake && \
                .. && \
          ninja  && ninja install
 RUN cd /thirdparty/OQSopenssl && \
-    sed -i  '/"linux-generic32" =>*/ a shlib_variant =>"_oqs",' Configurations/10-main.conf && \
     git verify-commit --verbose $OQS_OpenSSL_Commit || exit && \
     git checkout $OQS_OpenSSL_Commit && \
+    sed -i  '/"linux-generic32" =>*/ a shlib_variant =>"_oqs",' Configurations/10-main.conf && \
    ./Configure linux-x86_64 \
         --prefix=$install_dir \
         -I/thirdparty/OQSopenssl/liboqs/build/include \
