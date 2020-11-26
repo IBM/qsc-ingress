@@ -6,7 +6,19 @@ For that purpose, OpenSSL was built with QSC support from OQS, with the addition
 
 For cURL, the `versioned_symbols_flavour="OPENSSL_QSC_` was used in the `configure` file to distinguish library symbols from the original library. If you want to use the original cURL and the QSC-enabled cURL libraries in the same application, you have to build the code using cURL in two distinct libraries, each with unique symbol names, and then link those libs to your application. 
 
-We also added two patches for OpenSSL, such that cURL shows the version of the curve and certificate when using the `-v` verbose mode of operation. This to simplify the procedure to verify that the intended curves are used. 
+We also added two patches for OpenSSL, such that cURL shows the version of the curve and certificate when using the `-v` verbose mode of operation. This to simplify the procedure to verify that the intended curves are used. Therefore, the relevant line in the verbose output changes from
+```
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
+```
+to
+```
+when using X25519 curve
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / X25519 / RSASSA-PSS
+or when using kyber1024 KEM
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / kyber1024 / RSASSA-PSS
+or when using hybrid p256/kyber512
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / p256_kyber512 / RSASSA-PSS
+```
 
 Last-not-least: OpenSSL was built using the `-DOQS_DEFAULT_GROUPS` option to specify the default list of curves. It is important to understand that in TLSv1.3, if `client preference` is specified in the server, the first curve in the list is used which the server also understands, if no `--curves` was explicitly specified.
 
