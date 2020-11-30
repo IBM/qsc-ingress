@@ -12,6 +12,8 @@ It contains a reference implementation for deploying a custom QSC enabled HAProx
 
 Configuration for values.yaml in 'qsc-haproxy' directory
 
+The default values in the Helm configuration should be enough to deploy a working ingress controller as long as the user is logged in througn IBM Cloud CLI and kubectl is configured to the right cluster. All the docker images required for deployment are available publicly and the default values are configured to pull from the public source.
+
 The following table lists the configurable parameters of the Qsc-haproxy chart and their default values.
 | Parameter                | Description             | Default        |
 | ------------------------ | ----------------------- | -------------- |
